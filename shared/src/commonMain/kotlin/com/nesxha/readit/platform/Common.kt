@@ -1,0 +1,121 @@
+package com.nesxha.readit.platform
+
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlin.math.abs
+import kotlin.math.roundToLong
+
+/** Waktu sekarang dalam milidetik (pengganti System.currentTimeMillis). */
+fun nowMs(): Long = Clock.System.now().toEpochMilliseconds()
+
+/** Nomor hari lokal sejak 1970-01-01 (pengganti LocalDate.now().toEpochDay()). */
+fun localEpochDay(ms: Long = nowMs()): Long = (ms + systemUtcOffsetMinutes(ms) * 60_000L).floorDiv(86_400_000L)
+
+/** Jam dan menit lokal sekarang. */
+fun localHourMinute(ms: Long = nowMs()): Pair<Int, Int> {
+    val m = (ms + systemUtcOffsetMinutes(ms) * 60_000L).mod(86_400_000L) / 60_000L
+    return (m / 60).toInt() to (m % 60).toInt()
+}
+
+fun epochDayToDate(day: Long): LocalDate = LocalDate.fromEpochDays(day.toInt())
+
+private val HARI = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+private val BULAN = listOf("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember")
+
+fun dayName(d: LocalDate): String = HARI[d.dayOfWeek.ordinal]
+fun monthName(m: Int): String = BULAN[m - 1]
+fun monthShort(m: Int): String = BULAN[m - 1].take(3)
+
+/** "Kamis, 5 Nov 2026". */
+fun formatDateShort(d: LocalDate): String = "${dayName(d)}, ${d.dayOfMonth} ${monthShort(d.monthNumber)} ${d.year}"
+/** "5 November 2026". */
+fun formatDateLong(d: LocalDate): String = "${d.dayOfMonth} ${monthName(d.monthNumber)} ${d.year}"
+
+fun pad2(n: Int): String = if (n in 0..9) "0$n" else n.toString()
+fun pad2(n: Long): String = pad2(n.toInt())
+
+/** Pengganti String.format("%.1f") dsb: angka desimal dengan [digits] angka di belakang koma (pakai titik). */
+fun fixed(v: Double, digits: Int): String {
+    var p = 1L; repeat(digits) { p *= 10 }
+    val r = (abs(v) * p).roundToLong()
+    val s = (r / p).toString() + if (digits > 0) "." + (r % p).toString().padStart(digits, '0') else ""
+    return if (v < 0 && r != 0L) "-$s" else s
+}
+
+/** Heksadesimal dua digit per byte. */
+fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+
+/** UUID acak versi 4. */
+fun randomUuid(): String {
+    val b = ByteArray(16) { kotlin.random.Random.nextInt(256).toByte() }
+    b[6] = ((b[6].toInt() and 0x0f) or 0x40).toByte(); b[8] = ((b[8].toInt() and 0x3f) or 0x80).toByte()
+    val h = b.toHex()
+    return "${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}"
+}
+
+/** SHA-256 murni Kotlin (pengganti java.security.MessageDigest). */
+object Sha256 {
+    private val K = intArrayOf(
+        0x428a2f98, 0x71374491, -0x4a3f0431, -0x164a245b, 0x3956c25b, 0x59f111f1, -0x6dc07d5c, -0x54e3a12b,
+        -0x27f85568, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, -0x7f214e02, -0x6423f959, -0x3e640e8c,
+        -0x1b64963f, -0x1041b87a, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        -0x67c1aeae, -0x57ce3993, -0x4ffcd838, -0x40a68039, -0x391ff40d, -0x2a586eb9, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, -0x7e3d36d2, -0x6d8dd37b,
+        -0x5d40175f, -0x57e599b5, -0x3db47490, -0x3893ae5d, -0x2e6d17e7, -0x2966f9dc, -0xbf1ca7b, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, -0x7b3787ec, -0x7338fdf8, -0x6f410006, -0x5baf9315, -0x41065c09, -0x398e870e,
+    )
+
+    fun digest(input: ByteArray): ByteArray {
+        val bitLen = input.size.toLong() * 8
+        val padLen = ((input.size + 9 + 63) / 64) * 64
+        val msg = ByteArray(padLen)
+        input.copyInto(msg); msg[input.size] = 0x80.toByte()
+        for (i in 0 until 8) msg[padLen - 1 - i] = (bitLen ushr (8 * i)).toByte()
+        val h = intArrayOf(0x6a09e667, -0x4498517b, 0x3c6ef372, -0x5ab00ac6, 0x510e527f, -0x64fa9774, 0x1f83d9ab, 0x5be0cd19)
+        val w = IntArray(64)
+        for (chunk in 0 until padLen / 64) {
+            for (i in 0 until 16) {
+                val o = chunk * 64 + i * 4
+                w[i] = ((msg[o].toInt() and 0xff) shl 24) or ((msg[o + 1].toInt() and 0xff) shl 16) or ((msg[o + 2].toInt() and 0xff) shl 8) or (msg[o + 3].toInt() and 0xff)
+            }
+            for (i in 16 until 64) {
+                val s0 = w[i - 15].rotateRight(7) xor w[i - 15].rotateRight(18) xor (w[i - 15] ushr 3)
+                val s1 = w[i - 2].rotateRight(17) xor w[i - 2].rotateRight(19) xor (w[i - 2] ushr 10)
+                w[i] = w[i - 16] + s0 + w[i - 7] + s1
+            }
+            var a = h[0]; var b = h[1]; var c = h[2]; var d = h[3]; var e = h[4]; var f = h[5]; var g = h[6]; var hh = h[7]
+            for (i in 0 until 64) {
+                val s1 = e.rotateRight(6) xor e.rotateRight(11) xor e.rotateRight(25)
+                val ch = (e and f) xor (e.inv() and g)
+                val t1 = hh + s1 + ch + K[i] + w[i]
+                val s0 = a.rotateRight(2) xor a.rotateRight(13) xor a.rotateRight(22)
+                val maj = (a and b) xor (a and c) xor (b and c)
+                val t2 = s0 + maj
+                hh = g; g = f; f = e; e = d + t1; d = c; c = b; b = a; a = t1 + t2
+            }
+            h[0] += a; h[1] += b; h[2] += c; h[3] += d; h[4] += e; h[5] += f; h[6] += g; h[7] += hh
+        }
+        return ByteArray(32) { (h[it / 4] ushr (24 - 8 * (it % 4))).toByte() }
+    }
+
+    fun hex(s: String): String = digest(s.encodeToByteArray()).toHex()
+}
+
+/** Pembulatan .5 ke atas (sama dengan Math.round di Java dan round() di PostgreSQL untuk angka positif). */
+fun roundHalfUp(x: Double): Int = kotlin.math.floor(x + 0.5).toInt()
+fun roundHalfUp(x: Float): Int = roundHalfUp(x.toDouble())
+
+fun toRadians(deg: Double): Double = deg * kotlin.math.PI / 180.0
+
+/** Tanggal di zona WITA (UTC+8, tanpa musim panas), dipakai untuk waktu dari server. */
+fun witaDate(ms: Long): LocalDate = LocalDate.fromEpochDays((ms + 8 * 3_600_000L).floorDiv(86_400_000L).toInt())
+
+/** Angka dengan titik ribuan gaya Indonesia: 12345 → "12.345". */
+fun thousands(n: Int): String {
+    val s = kotlin.math.abs(n).toString().reversed().chunked(3).joinToString(".").reversed()
+    return if (n < 0) "-$s" else s
+}
+
+/** "HP ini" di Android, "browser ini" di web (untuk teks yang menyebut perangkat). */
+val thisDevice: String get() = if (Plat.ready && Plat.p.isWeb) "browser ini" else "HP ini"

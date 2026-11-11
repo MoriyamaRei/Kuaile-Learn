@@ -1,0 +1,2 @@
+-keep class com.nesxha.readit.widget.** { *; }
+-dontwarn org.jetbrains.annotations.**

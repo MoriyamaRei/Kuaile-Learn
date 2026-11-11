@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Kuaile Learn</string>
+    <string name="widget_word">Kuaile Learn · Kata Saat Ini</string>
+    <string name="widget_word_desc">Satu kata HSK yang berganti sendiri.</string>
+    <string name="widget_flash">Kuaile Learn · Flashcard Mini</string>
+    <string name="widget_flash_desc">Ketuk untuk melihat arti, lalu tandai hafal atau lupa.</string>
+    <string name="widget_progress">Kuaile Learn · Progres Harian</string>
+    <string name="widget_progress_desc">Target hari ini dan streak belajarmu.</string>
+</resources>
