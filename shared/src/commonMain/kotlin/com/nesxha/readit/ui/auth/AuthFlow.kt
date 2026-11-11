@@ -1,5 +1,7 @@
 package com.nesxha.readit.ui.auth
 
+import androidx.compose.foundation.layout.widthIn
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable

@@ -1,5 +1,10 @@
 package com.nesxha.readit
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import kotlinx.coroutines.delay
 
 import kotlinx.coroutines.launch
@@ -159,8 +164,14 @@ private fun AppScaffold(nav: NavHostController) {
     val showBar = tabIndex(current) >= 0 && !AppChrome.focusMode
     val barOffset by animateFloatAsState(if (showBar) 0f else 1f, tween(300), label = "bar")
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        // Layar lebar (desktop/tablet): navigasi di kiri, isi dibatasi lebarnya di tengah.
+        val wide = maxWidth >= 840.dp
+        Row(Modifier.fillMaxSize()) {
+            if (wide && showBar) SideRail(current) { nav.go(it) }
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+          Box(Modifier.widthIn(max = if (wide) 1100.dp else Dp.Infinity).fillMaxSize()) {
             NavHost(
                 nav, startDestination = "home",
                 enterTransition = { enter() },
@@ -203,9 +214,38 @@ private fun AppScaffold(nav: NavHostController) {
                     WordDetailScreen(nav, it.arguments?.getInt("id") ?: 1)
                 }
             }
+          }
         }
-        if (barOffset < 1f) {
+        if (!wide && barOffset < 1f) {
             BottomBar(current, Modifier.graphicsLayer { translationY = barOffset * size.height; alpha = 1f - barOffset }) { nav.go(it) }
+        }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SideRail(current: String?, onSelect: (String) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        Modifier.fillMaxHeight().width(220.dp).background(cs.surface).padding(horizontal = 14.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("Kuaile Learn", style = MaterialTheme.typography.titleLarge, color = cs.primary, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+        Spacer(Modifier.height(12.dp))
+        tabs.forEach { t ->
+            val sel = t.route == current
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(if (sel) cs.primaryContainer else Color.Transparent)
+                    .clickable { onSelect(t.route) }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(t.icon, null, tint = if (sel) cs.primary else cs.onSurfaceVariant, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(t.label, style = MaterialTheme.typography.labelLarge, color = if (sel) cs.primary else cs.onSurface)
+            }
         }
     }
 }
