@@ -66,6 +66,7 @@ import com.nesxha.readit.ui.components.FlameTierStrip
 import com.nesxha.readit.ui.components.LevelEmblem
 import com.nesxha.readit.ui.components.ProgressBar
 import com.nesxha.readit.ui.components.ScreenHeader
+import com.nesxha.readit.ui.components.EmptyState
 import com.nesxha.readit.ui.components.SectionTitle
 import com.nesxha.readit.ui.components.Segmented
 import com.nesxha.readit.ui.components.SoftCard
@@ -82,6 +83,12 @@ private val ranges = listOf(7, 14, 30)
 
 @Composable
 fun StatsScreen(nav: NavHostController) {
+    // Sementara: halaman profil belum dipakai, tampil "Coming Soon".
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader("Profil", null)
+        EmptyState("🚧", "Coming Soon", "Halaman profil sedang disiapkan.")
+    }
+    return
     val st by Store.state.collectAsState()
     var rangeIdx by rememberSaveable { mutableIntStateOf(1) }
     val range = ranges[rangeIdx]
